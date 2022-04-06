@@ -139,3 +139,7 @@ void rst::rasterizer::set_pixel(const Vector2i& point, const Eigen::Vector3f& co
 	int ind = (height - point.y()) * width + point.x();
 	frame_buf[ind] = color;
 }
+
+void rst::rasterizer::set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader) {
+    fragment_shader = frag_shader;
+}
