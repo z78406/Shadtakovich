@@ -10,12 +10,12 @@ int main(int argc, const char** argv) {
 
 	 bool loadout = Loader.LoadFile("../models/spot/spot_triangulated_good.obj");
 	 for(auto mesh : Loader.LoadedMeshes) {
-	 	for (int i = 0; i < mesh.Vertices.size(); i += 3) {
+	 	for (int i = 0; i < mesh.Vertices.size(); i += 3) { // each face(triangel)
 	 		Triangle* = new Triangle();
-	 		for (int j = 0; j < 3; j++) {
-	 			t->setVertex();
-	 			t->setNormal();
-	 			t->setTexCoord();
+	 		for (int j = 0; j < 3; j++) { // each vertex
+                t->setVertex(j,Vector4f(mesh.Vertices[i+j].Position.X,mesh.Vertices[i+j].Position.Y,mesh.Vertices[i+j].Position.Z,1.0));
+                t->setNormal(j,Vector3f(mesh.Vertices[i+j].Normal.X,mesh.Vertices[i+j].Normal.Y,mesh.Vertices[i+j].Normal.Z));
+                t->setTexCoord(j,Vector2f(mesh.Vertices[i+j].TextureCoordinate.X, mesh.Vertices[i+j].TextureCoordinate.Y));
 	 		}
 	 		TriangleList.push_back(t);
 	 	}
@@ -31,7 +31,15 @@ int main(int argc, const char** argv) {
 	std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
 
     if (argc >= 2) {
-    	
+        command_line = true;
+        filename = std::string(argv[1]);
+        if (argc == 3 && std::string(argv[2]) == "texture")
+        {
+            std::cout << "Rasterizing using the texture shader\n";
+            active_shader = texture_fragment_shader;
+            texture_path = "../models/spot/spot_texture.png";
+            r.set_texture(Texture(texture_path));
+        }            	
     }	
 
 	return 0;

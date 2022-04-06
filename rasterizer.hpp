@@ -28,7 +28,7 @@ public:
 private:
 	std::std::vector<Eigen::Vector3f> frame_buf; 										// save screen data
 	int width, height;																	// screen size
-	std::optional<Texture> texture;
+	std::optional<Texture> texture;														// optional class
 
 };
 

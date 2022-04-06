@@ -27,11 +27,11 @@ Triangle::Triangle() {
 }
 
 void setVertex(int ind, Vector4f ver) {
-	v[ind] = ver;
+	v.row(ind) = ver;
 }
 
 void Triangle::setNormal(int ind, Vector3f n) {
-	normal[ind] = n;
+	normal.row(ind) = n;
 }
 
 void Triangle::setColor(int ind, float r, float g, float b) {
@@ -43,11 +43,11 @@ void Triangle::setColor(int ind, float r, float g, float b) {
     	exit(-1);
     }
 
-    color[ind] = Vector3f((float)r / 255., (float)g / 255., (float)b / 255.);	
+    color.row(ind) = Vector3f((float)r / 255., (float)g / 255., (float)b / 255.);	
 }
 
 void Triangle::setTexCoord(int ind, Vector2f uv) {
-    tex_coords[ind] = uv;
+    tex_coords.row(ind) = uv;
 }
 
 std::array<Vector4f, 3> Triangle::toVector4() const {
