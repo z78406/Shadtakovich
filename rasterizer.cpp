@@ -9,6 +9,39 @@
 #include <math.h>
 
 
+void rst::rasterizer::clear(rst::Buffers buff) { 						// reset frame/depth buffer in rasterizer
+    if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
+    {
+        std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+    }
+    if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
+    {
+        std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+    }	
+}
+
+void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
+{
+    model = m;
+}
+
+void rst::rasterizer::set_view(const Eigen::Matrix4f& v)
+{
+    view = v;
+}
+
+void rst::rasterizer::set_projection(const Eigen::Matrix4f& p)
+{
+    projection = p;
+}
+
+
+void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) { // draw every face
+
+}
+
+
+
 void rst::rasterizer::drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color = {255, 255, 255}) {
 	// note we need to convert any line into a canonical 
 	// form: 1. abs(x2 - x1) > abs(y2 - y1) 2. x2 > x1 3. slope is okay if its' < 0.
@@ -119,7 +152,7 @@ void rst::rasterizer::drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f e
 	}	
 }
 
-void rst::rasterizer::drawTriangle() {
+void rst::rasterizer::drawTriangle(std::vector<Triangle*> &TriangleList) {
 	
 }
 
@@ -140,6 +173,15 @@ void rst::rasterizer::set_pixel(const Vector2i& point, const Eigen::Vector3f& co
 	frame_buf[ind] = color;
 }
 
+// load vertex shader instance into rasterizer
+void rst::rasterizer::set_vertex_shader(std::function<Eigen::Vector3f(vertex_shader_payload)> vert_shader)
+{
+    vertex_shader = vert_shader;
+}
+
+
+
+// load fragment shader instance into rasterizer
 void rst::rasterizer::set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader) {
     fragment_shader = frag_shader;
 }
