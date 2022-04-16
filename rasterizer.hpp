@@ -58,9 +58,9 @@ namespace rst
         col_buf_id load_normals(const std::vector<Eigen::Vector3f>& normals);	
         void drawTriangle(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf_id col_buffer, Primitive type);
 		void drawTriangle(std::vector<Triangle*> &TriangleList);										// draw each triangle from list
-		void drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);
-		void drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);
-
+		void drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);			// Heuristic line drawing
+		void drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color); // mid-point line drawing
+		void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color)			// Bresenham's line drawing 
 
 		void showImage(cv::Mat image);	
 
