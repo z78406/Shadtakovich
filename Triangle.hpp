@@ -11,18 +11,25 @@
 using namespace Eigen;
 
 class Triangle{
-publilc:
-	MatrixXf v(3, 4); 			/*the original coordinates of the triangle, v0, v1, v2 in counter clockwise order*/
-    /*Per vertex values*/
-	MatrixXf color(3, 3); //color at each vertex;
-	MatrixXf tex_coords(3, 2);		//texture u,v
-	MatrixXf normal(3, 3);		//normal vector for each vertex
+public:
+    // store vertex properties in the array 
+    Vector4f v[3]; /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise order*/
+    Vector3f color[3]; //color at each vertex;
+    Vector2f tex_coords[3]; //texture u,v
+    Vector3f normal[3]; //normal vector for each vertex
+
+    //// store vertex properties in the matrix
+	// MatrixXf v = MatrixXf(3,4); 			/*the original coordinates of the triangle, v0, v1, v2 in counter clockwise order*/
+	// MatrixXf color =  MatrixXf(3,3); //color at each vertex;
+	// MatrixXf tex_coords =  MatrixXf(3,2);		//texture u,v
+	// MatrixXf normal =  MatrixXf(3,3);		//normal vector for each vertex
+
 
 	Texture* tex = nullptr;
 	Triangle();
-    Vector4f a() const { return v[0]; } // return first vertex of the triangle
-    Vector4f b() const { return v[1]; } // return second vertex of the triangle
-    Vector4f c() const { return v[2]; } // return thrid vertex of the triangle
+    Vector4f get_first() const { return v[0]; } // return first vertex of the triangle
+    Vector4f get_second() const{ return v[1]; } // return second vertex of the triangle
+    Vector4f get_third() const { return v[2]; } // return thrid vertex of the triangle
 
     void setVertex(int ind, Vector4f ver); /*set i-th vertex coordinates */
     void setNormal(int ind, Vector3f n);   /*set i-th vertex normal vector*/
