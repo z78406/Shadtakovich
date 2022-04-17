@@ -18,7 +18,19 @@ A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented prim
 | Bresenham's line drawing algorithm (https://stackoverflow.com/questions/10060046/drawing-lines-with-bresenhams-line-algorithm)  | <ul><li>- [x] </li> |
 | line drawing (https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm) | <ul><li>- [x] </li> |
 | midpoint line drawing algorithm (https://www.geeksforgeeks.org/mid-point-line-generation-algorithm/) | <ul><li>- [x] </li> |
+|  shadow mapping  |  |
 
+	
+	
+##### File Description
+*  main.cpp
+    > define transformation matrix (world->camera / camera->camera canonical / perspective + orthogonal transform / 3D canonical cube to 2D screen)  
+    > define shader type (texture_fragment_shader / phong_fragment_shader)  
+    > iosstream (read obj file / texture map; output rendered screen image)  
+    > interaction (motion-based rendering from keyboard input)   
+	
+	
+	
 
 ##### Reference List:
 https://github.com/ssloy/tinyrenderer	\
