@@ -1,5 +1,8 @@
 # Folder
 build/
+local_build/
+vm_build/
+models/
 
 # Prerequisites
 *.d

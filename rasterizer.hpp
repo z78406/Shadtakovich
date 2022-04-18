@@ -60,7 +60,7 @@ namespace rst
 		void drawTriangle(std::vector<Triangle*> &TriangleList);										// draw each triangle from list
 		void drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);			// Heuristic line drawing
 		void drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color); // mid-point line drawing
-		void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color)			// Bresenham's line drawing 
+		void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);			// Bresenham's line drawing 
 
 		void showImage(cv::Mat image);	
 

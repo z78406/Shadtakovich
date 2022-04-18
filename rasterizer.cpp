@@ -244,7 +244,7 @@ void rst::rasterizer::drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen
 	float slope = std::abs((y2 - y1) / (x2 - x1));
 	float error = 0;
 	const int yincrs = y2 > y1? 1: -1; // increase / derease of y
-	Eigen::Vector3f point = Eigen::Vector2i(x1, y1);
+	Eigen::Vector2i point = Eigen::Vector2i(x1, y1);
 	int y = y1;
 
 	if (steep) {		
@@ -297,7 +297,7 @@ void rst::rasterizer::drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f e
 	float slope = std::abs((y2 - y1) / (x2 - x1));
 	const int yincrs = y2 > y1? 1: -1; // increase / derease of y
 
-	Eigen::Vector3f point = Eigen::Vector2i(x1, y1);
+	Eigen::Vector2i point = Eigen::Vector2i(x1, y1);
 
 	// Reference: https://www.geeksforgeeks.org/mid-point-line-generation-algorithm/
 	int y = y1;						  // y of the initial selected point
@@ -339,7 +339,7 @@ void rst::rasterizer::draw_line(Eigen::Vector3f begin, Eigen::Vector3f end, Eige
     auto x2 = end.x();
     auto y2 = end.y();
 
-    Eigen::Vector3f line_color = {255, 255, 255};
+    // Eigen::Vector3f line_color = {255, 255, 255};
 
     int x,y,dx,dy,dx1,dy1,px,py,xe,ye,i;
 
