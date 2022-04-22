@@ -7,6 +7,7 @@
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
 #include <math.h>
+#include "Light.hpp"
 
 rst::rasterizer::rasterizer(int w, int h) : width(w), height(h) {
 	frame_buf.resize(w * h);
@@ -115,7 +116,8 @@ static std::tuple<float, float, float> computeBarycentric2D(float x, float y, co
     return {c1,c2,c3};
 }
 
-void rst::rasterizer::drawTriangle(std::vector<Triangle*> &TriangleList) { // draw every triangle face
+void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, const light::p_Light& p_l, 
+                                    const light::a_Light& a_l, const Eigen::Vector3f& eye_pos) { // draw every triangle face
 	Eigen::Matrix4f mvps = screen * projection * view * model; 
 	// 1. read each triangle.
 	// 2. homogeneous division.
@@ -160,12 +162,13 @@ void rst::rasterizer::drawTriangle(std::vector<Triangle*> &TriangleList) { // dr
         newtri.setColor(1, 148,121.0,92.0);
         newtri.setColor(2, 148,121.0,92.0);        
         // Also pass view space vertice position
-        rasterize_triangle(newtri, p_3d);
+        rasterize_triangle(newtri, p_3d, p_l, a_l, eye_pos);
 	}
 
 }
 
-void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& p_3d) { // draw triangle on the screen given its 3 vertices
+void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& p_3d,
+const light::p_Light& p_l, const light::a_Light& a_l, const Eigen::Vector3f& eye_pos) { // draw triangle on the screen given its 3 vertices
 	// 1. use Barycentric to interpolate the value of pixels from 3 vertices.
 	// 2. use depth-test to save nearest pixels into the depth-buffer.
 	auto v = t.toVector4();
@@ -186,7 +189,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
         {
             // we need to decide whether this point is actually inside the triangle
             if(!insideTriangle((float)x+0.5,(float)y+0.5,t.v))    
-                continue; // note: we use x+0.5 here to improve the precision
+                continue; // note: we use x+0.5 to probe each pixel center
             // get z value--depth
             // If so, use the following code to get the interpolated z value.
             auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
@@ -213,7 +216,8 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
 				// init shader struct and pass it to the class rasterizer
 				fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
 				payload.p_3d = interpolated_shadingcoords;
-				auto pixel_color = fragment_shader(payload);   // read color from shader (from interpolated_color)              
+				// auto pixel_color = fragment_shader(payload);   // read color from shader (from interpolated_color)    
+                auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);   // read point color from frag_shader calculation results.           
 				// set color
 				set_pixel(Eigen::Vector2i(x,y), pixel_color);               
 	        }
@@ -465,6 +469,7 @@ int rst::rasterizer::get_index(int x, int y)
 
 
 // load fragment shader instance into rasterizer
-void rst::rasterizer::set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader) {
+void rst::rasterizer::set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload, 
+                                        light::p_Light, light::a_Light, Eigen::Vector3f)> frag_shader) {
     fragment_shader = frag_shader;
 }

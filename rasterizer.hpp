@@ -12,6 +12,7 @@
 #include "global.hpp"
 #include "Shader.hpp"
 #include "Triangle.hpp"
+#include "Light.hpp"
 using namespace Eigen;
 
 namespace rst 
@@ -57,7 +58,8 @@ namespace rst
         col_buf_id load_colors(const std::vector<Eigen::Vector3f>& colors);
         col_buf_id load_normals(const std::vector<Eigen::Vector3f>& normals);	
         void drawTriangle(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf_id col_buffer, Primitive type);
-		void drawTriangle(std::vector<Triangle*> &TriangleList);										// draw each triangle from list
+		void drawTriangle(const std::vector<Triangle*> &TriangleList, const light::p_Light& p_l, 
+                                    const light::a_Light& a_l, const Eigen::Vector3f& eye_pos);										// draw each triangle from list
 		void drawLine(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);			// Heuristic line drawing
 		void drawLine_midpoint(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color); // mid-point line drawing
 		void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end, Eigen::Vector3f line_color);			// Bresenham's line drawing 
@@ -68,7 +70,7 @@ namespace rst
 		void set_pixel(const Vector2i& point, const Eigen::Vector3f& color);	
 		void set_texture(Texture tex) { texture = tex; }		
 	    void set_vertex_shader(std::function<Eigen::Vector3f(vertex_shader_payload)> vert_shader);
-	    void set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader);	
+	    void set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload, light::p_Light, light::a_Light, Eigen::Vector3f)> frag_shader);	
 
         void set_model(const Eigen::Matrix4f& m);
         void set_view(const Eigen::Matrix4f& v);
@@ -94,9 +96,10 @@ namespace rst
 	    std::map<int, std::vector<Eigen::Vector3f>> nor_buf;								// save vertex normal
 
 		std::optional<Texture> texture;														// optional class texture (read uv colormap)
-	    std::function<Eigen::Vector3f(fragment_shader_payload)> fragment_shader;			// fragment shader in shader.hpp
+	    std::function<Eigen::Vector3f(fragment_shader_payload, light::p_Light, light::a_Light, Eigen::Vector3f)> fragment_shader;			// fragment shader in shader.hpp
 	    std::function<Eigen::Vector3f(vertex_shader_payload)> vertex_shader;				// vertex shader in shader.hpp
-		void rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& world_pos);															// screen size
+		void rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& world_pos, const light::p_Light& p_l, 
+                                    const light::a_Light& a_l, const Eigen::Vector3f& eye_pos);															// screen size
         int normal_id = -1;
 		int get_index(int x, int y);
         int next_id = 0;

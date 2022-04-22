@@ -1,6 +1,6 @@
 //
-// Created by LEI XU on 4/27/19.
-//
+// Texture class. Get vertex color from uv map.
+// 2022/04/22
 
 #ifndef RASTERIZER_TEXTURE_H
 #define RASTERIZER_TEXTURE_H
@@ -22,7 +22,7 @@ public:
 
     int width, height;
 
-    Eigen::Vector3f getColor(float u, float v)
+    Eigen::Vector3f getColor(float u, float v)                      // inquiry vertex color from input uv map by its index.
     {
         u=std::min(1.0f, std::max(0.0f, u));
         v=std::min(1.0f, std::max(0.0f, v));
@@ -33,7 +33,7 @@ public:
         return Eigen::Vector3f(color[0], color[1], color[2]);
     }
 
-    Eigen::Vector3f getColorBilinear(float u, float v)
+    Eigen::Vector3f getColorBilinear(float u, float v)              // inquiry vertex color from input uv map by bilinear interpolation
     {
         u=std::min(1.0f, std::max(0.0f, u)); 
         v=std::min(1.0f, std::max(0.0f, v));
