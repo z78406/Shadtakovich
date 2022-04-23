@@ -30,11 +30,13 @@ Eigen::Matrix4f Transformation::get_view_matrix(const Eigen::Vector3f& eye_pos, 
               gaze.cross(up).z(), up.z(), -1 * gaze.z(), 0,
               0,                0,    0,           1;
 
-    view = rotate * translate * view;
+    view = rotate.transpose() * translate * view;
     return view;
 }
 
-Eigen::Matrix4f Transformation::get_model_matrix(const Eigen::Vector3f& agl, const Eigen::Vector3f& scl = {2.5, 2.5, 2.5}, const Eigen::Vector3f& tsl = {0, 0, 0}) { // model transform: world to camera coord
+Eigen::Matrix4f Transformation::get_model_matrix(const Eigen::Vector3f& agl, 
+                                                const Eigen::Vector3f& scl = {2.5, 2.5, 2.5}, const Eigen::Vector3f& tsl = {1, 1, 1}) 
+{ // model transform: world to camera coord
 
     Eigen::Matrix4f rotation_x, rotation_y, rotation_z, rotation;
     float angle_x = agl.x(), angle_y = agl.y(), angle_z = agl.z();
@@ -63,9 +65,9 @@ Eigen::Matrix4f Transformation::get_model_matrix(const Eigen::Vector3f& agl, con
               0, 0, 0, 1;
 
     Eigen::Matrix4f translate;
-    translate << tsl.x(), 0, 0, 0,
-            0, tsl.y(), 0, 0,
-            0, 0, tsl.z(), 0,
+    translate << 1, 0, 0, tsl.x(),
+            0, 1, 0, tsl.y(),
+            0, 0, 1, tsl.z(),
             0, 0, 0, 1;
             
     return  rotation * translate * scale;    
@@ -116,4 +118,5 @@ Eigen::Matrix4f Transformation::get_screen_matrix(const int& width, const int& h
 		      0,		 0,		0,		1;
 	return screen;
 }
+
 

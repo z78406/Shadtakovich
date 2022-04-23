@@ -4,6 +4,7 @@
 
 
 #include <algorithm>
+#include <stdexcept>
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
 #include <math.h>
@@ -25,6 +26,11 @@ void rst::rasterizer::clear(rst::Buffers buff) { 						// reset frame/depth buff
     {
         std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
     }	
+}
+
+void rst::rasterizer::clear_shadow() {
+    std::fill(shadow_buf.begin(), shadow_buf.end(), Eigen::Vector3f{255, 255, 255});
+    std::fill(shadow_depth_buf.begin(), shadow_depth_buf.end(), std::numeric_limits<float>::infinity());
 }
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions) {
@@ -95,6 +101,10 @@ void rst::rasterizer::set_screen(const Eigen::Matrix4f& p) {			// canonical cube
     screen = p;
 }
 
+void rst::rasterizer::set_cam2light(const Eigen::Matrix4f& p) {			// canonical cube to screen
+    cam2light = p;
+}
+
 static bool insideTriangle(float x, float y, const Vector4f* _v) {
     Vector3f v[3];
     for(int i=0;i<3;i++)
@@ -122,39 +132,41 @@ void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, c
 	// 1. read each triangle.
 	// 2. homogeneous division.
 	// 3. rasterize each triangle.
+
+
 	for (const auto& t : TriangleList) {
 		Triangle newtri = *t;
-		std::array<Eigen::Vector4f, 3> mm {
+		std::array<Eigen::Vector4f, 3> mm {     // transform points (triangle vertex) from world space to cam space
 			(view * model * t->v[0]),
 			(view * model * t->v[1]),
 			(view * model * t->v[2])
 		};
 
-		std::array<Eigen::Vector3f, 3> p_3d;
+		std::array<Eigen::Vector3f, 3> p_3d;     // save points 3d info
 		std::transform(mm.begin(), mm.end(), p_3d.begin(), [](auto& v) {
 			return v.template head<3>();
 		});
 
-		Eigen::Vector4f v[] = {
+		Eigen::Vector4f v[] = {                 // transform points (triangle vertex) from world space to screen space
 			mvps * t->v[0],
 			mvps * t->v[1],
 			mvps * t->v[2]
 		};
-		// vertex
-		for (auto& vec : v) {
+		                                       
+		for (auto& vec : v) {                    // vertex homogeneous division.
 			vec.x() /= vec.w();
 			vec.y() /= vec.w();
 			vec.z() /= vec.w();
 		}
-		// normal
-		Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();
+	 
+		Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();   // transfrom normal from world space to screen space. See https://github.com/ssloy/tinyrenderer/wiki/Lesson-5:-Moving-the-camera.
         Eigen::Vector4f n[] = {
                 inv_trans * to_vec4(t->normal[0], 0.0f),
                 inv_trans * to_vec4(t->normal[1], 0.0f),
                 inv_trans * to_vec4(t->normal[2], 0.0f)
         };
-        // set it to class triangle
-        for (int i = 0; i < 3; i++) {
+
+        for (int i = 0; i < 3; i++) {                           // set projected coords/normal info to class triangle
         	newtri.setVertex(i, v[i]);
         	newtri.setNormal(i, n[i].head<3>());
         }	
@@ -163,12 +175,21 @@ void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, c
         newtri.setColor(2, 148,121.0,92.0);        
         // Also pass view space vertice position
         rasterize_triangle(newtri, p_3d, p_l, a_l, eye_pos);
+        if (!visible_at_least_one)
+            std::cout<<"Did not render any object part to screen. Try to reset camera parameters or object location!"<<std::endl;
 	}
 
 }
 
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& p_3d,
-const light::p_Light& p_l, const light::a_Light& a_l, const Eigen::Vector3f& eye_pos) { // draw triangle on the screen given its 3 vertices
+                                        const light::p_Light& p_l, const light::a_Light& a_l, const Eigen::Vector3f& eye_pos) { // draw triangle on the screen given its 3 vertices
+
+    /* Input Arguments:
+    t: triangle class that contains info of 3 vertexs.
+
+
+    */
+
 	// 1. use Barycentric to interpolate the value of pixels from 3 vertices.
 	// 2. use depth-test to save nearest pixels into the depth-buffer.
 	auto v = t.toVector4();
@@ -176,11 +197,22 @@ const light::p_Light& p_l, const light::a_Light& a_l, const Eigen::Vector3f& eye
     float x_max=std::max({v[0][0], v[1][0], v[2][0]});
     float y_min=std::min({v[0][1], v[1][1], v[2][1]});
     float y_max=std::max({v[0][1], v[1][1], v[2][1]});  
+    
+    std::vector<int> w_size = rst::rasterizer::get_size();
+    const int& width = w_size[0], height = w_size[1];
 
     x_min = (int)std::floor(x_min);
+    x_min = x_min < 0? 0: x_min;
     x_max = (int)std::ceil(x_max);
+    x_max = x_max >= width? width - 1: x_max;
     y_min = (int)std::floor(y_min);
-    y_max = (int)std::ceil(y_max);  
+    y_min = y_min < 0? 0: y_min;
+    y_max = (int)std::ceil(y_max);
+    y_max = y_max >= height? height - 1: y_max;
+
+
+    if (x_min < 0 || x_max >= width || y_min < 0 || y_max >= height) // avoid projected triangle vertex 2D coord out of screen
+        throw std::runtime_error("Error: vertex coord beyond current window, check projection-related params");
 
    // without anti-alising
     for(int x=x_min; x<=x_max; x++)
@@ -192,32 +224,52 @@ const light::p_Light& p_l, const light::a_Light& a_l, const Eigen::Vector3f& eye
                 continue; // note: we use x+0.5 to probe each pixel center
             // get z value--depth
             // If so, use the following code to get the interpolated z value.
+            visible_at_least_one = true;
             auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
 
             float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
             float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
             zp *= Z;
+            const Eigen::Vector3f pxl_3d = {x, y, zp};  // pixel coordinate in cam 3D
+            Eigen::Vector3f pxl_shad;                   // pixel coordinates in shadow 3D
+            int shad_idx;                               // pixel index in shadow 3D
+            if (rst::rasterizer::read_shadow)  {        // read shadow from precomputed result.
+                pxl_shad = p_trans(pxl_3d, cam2light);          // transform current pixel to shadow coord
+                auto x_shad = pxl_shad.x(), y_shad = pxl_shad.y(), z_shad = pxl_shad.z();
+                x_shad = (int)x_shad;
+                y_shad = (int)y_shad;
+                x_shad = x_shad < 0? 0: x_shad >= width? width - 1: x_shad;
+                y_shad = y_shad < 0? 0: y_shad >= height? y_shad - 1: y_shad;
+                shad_idx = get_index(x_shad, y_shad);       // obtain pixel inquiry index of shadow coord buffer 
+            }   
 
-            // compare the current depth with the value in depth buffer
+
+
+            // compare the current depth with the value in depth buffer and shadow buffer
             if(depth_buf[get_index(x,y)] > zp)// note: we use get_index to get the index of current point in depth buffer
             {
+
                 // we have to update this pixel
                 depth_buf[get_index(x,y)] = zp; // update depth buffer
-
-                // interpolate color
+                // std::cout<<"Current depth"<<pixel_3d<<std::endl;
+                // interpolate color 3D
                 auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
-                // interpolate norm
+                // interpolate norm 3d
                 auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
-                // interpolate texture
+                // interpolate texture 2D
                 auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
-                // interpolate shading_coords
+                // interpolate shading_coords 3D
 				auto interpolated_shadingcoords=interpolate(alpha, beta, gamma, p_3d[0], p_3d[0], p_3d[0], 1);	
 
 				// init shader struct and pass it to the class rasterizer
-				fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
-				payload.p_3d = interpolated_shadingcoords;
-				// auto pixel_color = fragment_shader(payload);   // read color from shader (from interpolated_color)    
-                auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);   // read point color from frag_shader calculation results.           
+				fragment_shader_payload payload(interpolated_shadingcoords, pxl_3d,
+                            interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);  
+                auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);    // ***** read point color from frag_shader calculation results.  
+                // std::cout<<pixel_color<<std::endl;
+                if (rst::rasterizer::read_shadow) {
+                    float shadow = 0.3 + 0.7 * (shadow_depth_buf[shad_idx] >= zp); // add shadow factor on top of shader rendered pixel color.  
+                    pixel_color *= shadow;
+                }       
 				// set color
 				set_pixel(Eigen::Vector2i(x,y), pixel_color);               
 	        }
@@ -467,9 +519,37 @@ int rst::rasterizer::get_index(int x, int y)
     return (height-y)*width + x;
 }
 
+Eigen::Vector4f rst::rasterizer::toVector4(const Eigen::Vector3f& p3) { // convert every pixel vertex in p_3d into 4d coord
+    return Eigen::Vector4f(p3.x(), p3.y(), p3.z(), 1.f);
+}
+
+Eigen::Vector3f rst::rasterizer::p_trans(const Eigen::Vector3f& p3, const Eigen::Matrix4f& m) { // transform 3d point given transform mat
+    Eigen::Vector4f p4 = toVector4(p3);
+    p4 = m * p4;
+    p4 /= p4.w();
+    return p4.head<3>();
+}
+
+std::vector<Eigen::Vector4f> rst::rasterizer::toVector4(const std::vector<Eigen::Vector3f>& p3) { // convert every pixel vertex in p_3d into 4d coord
+    std::vector<Eigen::Vector4f> res;
+    std::transform(std::begin(p3), std::end(p3), std::back_inserter(res), [](auto& vec) { return Eigen::Vector4f(vec.x(), vec.y(), vec.z(), 1.f); });
+    return res;
+}
+
+std::vector<Eigen::Vector3f> rst::rasterizer::p_trans(const std::vector<Eigen::Vector3f>& p3, const Eigen::Matrix4f& m) { // transform array of 3d point given transform mat
+    std::vector<Eigen::Vector3f> res;
+    std::vector<Eigen::Vector4f> p4 = toVector4(p3);
+    for (auto p: p4) {
+        Eigen::Vector4f p4_new = m * p;
+        res.push_back(p4_new.head<3>());
+    }
+    // std::transform(std::begin(p4), std::end(p4), std::back_inserter(res), [&m](auto& vec) {Eigen::Vector4f new_p4 = m * vec; new_p4 /= new_p4.w(); return new_p4.template head<3>();});
+    return res;
+}
 
 // load fragment shader instance into rasterizer
 void rst::rasterizer::set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload, 
                                         light::p_Light, light::a_Light, Eigen::Vector3f)> frag_shader) {
     fragment_shader = frag_shader;
 }
+

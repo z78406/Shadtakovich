@@ -16,8 +16,7 @@ class Transformation {
         Eigen::Matrix4f get_model_matrix(const Eigen::Vector3f& agl, const Eigen::Vector3f& scl, const Eigen::Vector3f& tsl);              // world to camera transform
         Eigen::Matrix4f get_projection_matrix(const float& eye_fov, const float& aspect_ratio,                                          // projection transform
                                       const float& zNear, const float& zFar);
-        Eigen::Matrix4f get_screen_matrix(const int& width, const int& height) ;                                                        // viewport transform
-
+        Eigen::Matrix4f get_screen_matrix(const int& width, const int& height);                                                        // viewport transform
     private:
 
 
