@@ -16,9 +16,10 @@ A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented prim
 |  functions   | tested |
 |  ----  | ----  |
 | Bresenham's line drawing algorithm (https://stackoverflow.com/questions/10060046/drawing-lines-with-bresenhams-line-algorithm)  | <ul><li>- [x] </li> |
-| line drawing (https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm) | <ul><li>- [x] </li> |
-| midpoint line drawing algorithm (https://www.geeksforgeeks.org/mid-point-line-generation-algorithm/) | <ul><li>- [x] </li> |
-|  shadow mapping  |  |
+| Bresenham's Line drawing modified (https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm) | <ul><li>- [x] </li> |
+| Midpoint line drawing algorithm (https://www.geeksforgeeks.org/mid-point-line-generation-algorithm/) | <ul><li>- [x] </li> |
+|  Shadow mapping  |  <ul><li>- [x] </li> |
+| Anti-aliasing| |
 
 	
 	
