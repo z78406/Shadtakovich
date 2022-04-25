@@ -25,17 +25,17 @@ Eigen::Matrix4f Transformation::get_view_matrix(const Eigen::Vector3f& eye_pos, 
                 0,0,1,-eye_pos[2],
                 0,0,0,1;   
     
-    rotate << gaze.cross(up).x(), up.x(), -1 * gaze.x(), 0,
-              gaze.cross(up).y(), up.y(), -1 * gaze.y(), 0,
-              gaze.cross(up).z(), up.z(), -1 * gaze.z(), 0,
+    rotate << gaze.cross(up).x(), up.x(), gaze.x(), 0, // g at -z, x at up
+              gaze.cross(up).y(), up.y(), gaze.y(), 0,
+              gaze.cross(up).z(), up.z(), gaze.z(), 0,
               0,                0,    0,           1;
 
-    view = rotate.transpose() * translate * view;
+    view = rotate.transpose() * translate * view; // rotate.inverse() == rotate.transpose()
     return view;
 }
 
 Eigen::Matrix4f Transformation::get_model_matrix(const Eigen::Vector3f& agl, 
-                                                const Eigen::Vector3f& scl = {2.5, 2.5, 2.5}, const Eigen::Vector3f& tsl = {1, 1, 1}) 
+                                                const Eigen::Vector3f& scl = {2.5, 2.5, 2.5}, const Eigen::Vector3f& tsl = {0, 0, 0}) 
 { // model transform: world to camera coord
 
     Eigen::Matrix4f rotation_x, rotation_y, rotation_z, rotation;
@@ -81,10 +81,10 @@ Eigen::Matrix4f Transformation::get_projection_matrix(const float& eye_fov, cons
     // renaming params.
     float n = zNear, f = zFar, e = eye_fov, as = aspect_ratio;
     float half_angle = eye_fov / 2.0 / 180.0 * MY_PI;
-    float t = n * std::tan(half_angle); // similar triangles.
-    float r = t * as;
-    float l = -1 * r;
-    float b = -1 * t;
+    float t = n * std::tan(half_angle); // top using similar triangles.
+    float r = t * as; // right
+    float l = -1 * r; // left
+    float b = -1 * t; // bottom
     // P2O mat: perspevtive to orthorgonal projection
     Eigen::Matrix4f P2O = Eigen::Matrix4f::Identity();
     P2O << n, 0, 0, 0,
@@ -92,16 +92,16 @@ Eigen::Matrix4f Transformation::get_projection_matrix(const float& eye_fov, cons
            0, 0, n + f, -n * f,
            0, 0, 1, 0;
     // O mat: orthorgonal mat. O_s: scale mat. O_t: translate mat. O = O_s * O_t.
-    Eigen::Matrix4f O_s = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f O_s = Eigen::Matrix4f::Identity(); // Trick here. use 2 / (n - f) to convert z axis from negative (-z view) tp positive value.
     O_s <<  2 / (r - l),        0,         0,      0,
             0,          2 / (t - b),       0,      0,
-            0,                  0, 2 / (n - f),    0,
+            0,                  0, 2 / (f - n),    0,
             0,                  0,          0,     1;
 
-    Eigen::Matrix4f O_t = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f O_t = Eigen::Matrix4f::Identity(); 
     O_t << 1,       0,      0,      -1 * (r + l) / 2,
            0,       1,      0,      -1 * (t + b) / 2,
-           0,       0,      1,      -1 * (n + f) / 2,
+           0,       0,      1,      -1 * (f + n) / 2,
            0,        0,      0,      1;
 
     Eigen::Matrix4f O = O_s * O_t;
@@ -117,6 +117,11 @@ Eigen::Matrix4f Transformation::get_screen_matrix(const int& width, const int& h
 		      0,		 0,		1,		0,
 		      0,		 0,		0,		1;
 	return screen;
+}
+
+Eigen::Vector3f Transformation::get_up_vector(const Eigen::Vector3f& eye_pos, const Eigen::Vector3f& origin) { 
+    // return camera's up vector in world coordinate system given its position: eye_pos and its gaze: assume to gaze at world origin.
+    return {0,0,0};
 }
 
 

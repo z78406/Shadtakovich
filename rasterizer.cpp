@@ -133,9 +133,10 @@ void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, c
 	// 2. homogeneous division.
 	// 3. rasterize each triangle.
 
-
 	for (const auto& t : TriangleList) {
 		Triangle newtri = *t;
+        // std::cout<<t->v[0]<<std::endl;
+        // return;
 		std::array<Eigen::Vector4f, 3> mm {     // transform points (triangle vertex) from world space to cam space
 			(view * model * t->v[0]),
 			(view * model * t->v[1]),
@@ -152,13 +153,14 @@ void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, c
 			mvps * t->v[1],
 			mvps * t->v[2]
 		};
-		                                       
+        // std::cout<<v[0]<<std::endl;
 		for (auto& vec : v) {                    // vertex homogeneous division.
 			vec.x() /= vec.w();
 			vec.y() /= vec.w();
 			vec.z() /= vec.w();
 		}
-	 
+        // std::cout<<v[0]<<std::endl;
+        // return;	 
 		Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();   // transfrom normal from world space to screen space. See https://github.com/ssloy/tinyrenderer/wiki/Lesson-5:-Moving-the-camera.
         Eigen::Vector4f n[] = {
                 inv_trans * to_vec4(t->normal[0], 0.0f),
@@ -231,20 +233,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
             float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
             zp *= Z;
             const Eigen::Vector3f pxl_3d = {x, y, zp};  // pixel coordinate in cam 3D
-            Eigen::Vector3f pxl_shad;                   // pixel coordinates in shadow 3D
-            int shad_idx;                               // pixel index in shadow 3D
-            if (rst::rasterizer::read_shadow)  {        // read shadow from precomputed result.
-                pxl_shad = p_trans(pxl_3d, cam2light);          // transform current pixel to shadow coord
-                auto x_shad = pxl_shad.x(), y_shad = pxl_shad.y(), z_shad = pxl_shad.z();
-                x_shad = (int)x_shad;
-                y_shad = (int)y_shad;
-                x_shad = x_shad < 0? 0: x_shad >= width? width - 1: x_shad;
-                y_shad = y_shad < 0? 0: y_shad >= height? y_shad - 1: y_shad;
-                shad_idx = get_index(x_shad, y_shad);       // obtain pixel inquiry index of shadow coord buffer 
-            }   
-
-
-
+            // std::cout<<zp<<std::endl;
             // compare the current depth with the value in depth buffer and shadow buffer
             if(depth_buf[get_index(x,y)] > zp)// note: we use get_index to get the index of current point in depth buffer
             {
@@ -266,9 +255,25 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
                             interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);  
                 auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);    // ***** read point color from frag_shader calculation results.  
                 // std::cout<<pixel_color<<std::endl;
-                if (rst::rasterizer::read_shadow) {
-                    float shadow = 0.3 + 0.7 * (shadow_depth_buf[shad_idx] >= zp); // add shadow factor on top of shader rendered pixel color.  
-                    pixel_color *= shadow;
+
+
+
+                int idx_shad = -1;                          // default shad idx 
+                if (rst::rasterizer::read_shadow)  {        // read shadow from precomputed result.
+                    Eigen::Vector3f pxl_shad = p_trans(pxl_3d, cam2light);          // transform current pixel to shadow coord
+                    auto x_shad = pxl_shad.x(), y_shad = pxl_shad.y(), z_shad = pxl_shad.z();
+                    x_shad = (int)x_shad;
+                    y_shad = (int)y_shad;
+                    if (x_shad >= 0 && x_shad < width && y_shad >= 0 && y_shad < height) { // if valid inquiry pixel
+                        idx_shad = get_index(x_shad, y_shad);       // obtain pixel inquiry index of shadow coord buffer
+                    }
+                    if (idx_shad != -1) {
+                        if (shadow_depth_buf[idx_shad] < z_shad)
+                            std::cout<<"find shadow point"<<std::endl;
+                        float shadow = 0.3 + 0.7 * (shadow_depth_buf[idx_shad] >= z_shad); // add shadow factor on top of shader rendered pixel color.  
+                        // std::cout<<shadow<<" "<<shadow_depth_buf[idx_shad]<<" "<<z_shad<<std::endl;
+                        pixel_color *= shadow;
+                    }
                 }       
 				// set color
 				set_pixel(Eigen::Vector2i(x,y), pixel_color);               
@@ -541,6 +546,7 @@ std::vector<Eigen::Vector3f> rst::rasterizer::p_trans(const std::vector<Eigen::V
     std::vector<Eigen::Vector4f> p4 = toVector4(p3);
     for (auto p: p4) {
         Eigen::Vector4f p4_new = m * p;
+        p4_new /= p4_new.w();
         res.push_back(p4_new.head<3>());
     }
     // std::transform(std::begin(p4), std::end(p4), std::back_inserter(res), [&m](auto& vec) {Eigen::Vector4f new_p4 = m * vec; new_p4 /= new_p4.w(); return new_p4.template head<3>();});
