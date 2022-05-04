@@ -1,15 +1,17 @@
 # Shadtakovich
-Get hands dirty by building a simple shader. 
+Get hands dirty by building a simple Rasterizer. 
 
+# Miscellaneous rendering result
 		
 ##### Rendering Pipeline	
 ```mermaid
 graph LR
 A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented primitive]
     B --> C[projection 3D -> 2D -> Screen]
-    C -->D[draw triangle area by vertex interpolation]
+    C -->D[draw fragment within the primitive]
     D -->E[depth test]
-    E -->F[Rendered Result]
+    E -->F[Fragment Shading]
+    F -->G[Rendered Result]
 ```
 
 ##### Current Support Functions
@@ -19,7 +21,10 @@ A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented prim
 | Bresenham's Line drawing modified (https://github.com/ssloy/tinyrenderer/wiki/Lesson-1:-Bresenham%E2%80%99s-Line-Drawing-Algorithm) | <ul><li>- [x] </li> |
 | Midpoint line drawing algorithm (https://www.geeksforgeeks.org/mid-point-line-generation-algorithm/) | <ul><li>- [x] </li> |
 |  Shadow mapping  |  <ul><li>- [x] </li> |
-| Anti-aliasing| |
+|  Cascaded Shadow mapping  |   |		
+| Anti-aliasing(MSAA) |  <ul><li>- [x] </li>|
+| Anti-aliasing(FSAA) |  |
+| Interaction (e.g. camera path) |  |	
 
 	
 	
