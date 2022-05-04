@@ -13,7 +13,8 @@
 rst::rasterizer::rasterizer(int w, int h) : width(w), height(h) {
 	frame_buf.resize(w * h);
 	depth_buf.resize(w * h);
-
+	super_frame_buf.resize(w * h * msaa_ratio);
+	super_depth_buf.resize(w * h * msaa_ratio);
 	texture = std::nullopt;
 }
 
@@ -21,10 +22,12 @@ void rst::rasterizer::clear(rst::Buffers buff) { 						// reset frame/depth buff
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
         std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+        std::fill(super_frame_buf.begin(), super_frame_buf.end(), Eigen::Vector3f{0, 0, 0});
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::fill(super_depth_buf.begin(), super_depth_buf.end(), std::numeric_limits<float>::infinity());
     }	
 }
 
@@ -172,12 +175,12 @@ void rst::rasterizer::drawTriangle(const std::vector<Triangle*> &TriangleList, c
         	newtri.setVertex(i, v[i]);
         	newtri.setNormal(i, n[i].head<3>());
         }	
-        newtri.setColor(0, 148,121.0,92.0);
-        newtri.setColor(1, 148,121.0,92.0);
-        newtri.setColor(2, 148,121.0,92.0);        
+        newtri.setColor(0, 148,121.0,92.0);                     // default vertex color v0
+        newtri.setColor(1, 148,121.0,92.0);                     // default vertex color v1
+        newtri.setColor(2, 148,121.0,92.0);                     // default vertex color v2
         // Also pass view space vertice position
         rasterize_triangle(newtri, p_3d, p_l, a_l, eye_pos);
-        if (!visible_at_least_one)
+        if (!visible_at_least_one) 
             std::cout<<"Did not render any object part to screen. Try to reset camera parameters or object location!"<<std::endl;
 	}
 
@@ -216,68 +219,173 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
     if (x_min < 0 || x_max >= width || y_min < 0 || y_max >= height) // avoid projected triangle vertex 2D coord out of screen
         throw std::runtime_error("Error: vertex coord beyond current window, check projection-related params");
 
-   // without anti-alising
+    
     for(int x=x_min; x<=x_max; x++)
     {
         for(int y=y_min; y<=y_max; y++)
         {
-            // we need to decide whether this point is actually inside the triangle
-            if(!insideTriangle((float)x+0.5,(float)y+0.5,t.v))    
-                continue; // note: we use x+0.5 to probe each pixel center
-            // get z value--depth
-            // If so, use the following code to get the interpolated z value.
-            visible_at_least_one = true;
-            auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
+            // std::cout<<use_msaa<<std::endl;
+            if (use_msaa) {
+                int count = 0;                                                   // calculate msaa weight
+                float max_count = msaa_ratio;                                    // msaa
+                Eigen::Vector3f pixel_color;                                     // pixel color returned from the fragment shader
+                Eigen::Vector3f final_color;                                     // final pixel color returned by msaa average and also shadow mapping
+                std::vector<std::vector<float>> sampled_points;                  // sampled point sets for msaa
+                if (msaa_ratio == 4)
+                    sampled_points = std::vector<std::vector<float>> {{0.25,0.25},{0.75,0.25},{0.25,0.75},{0.75,0.75}}; // this is for default msaa4X configurations.
+                else if (msaa_ratio == 8)
+                    sampled_points = std::vector<std::vector<float>> {{0.25,0.25},{0.5,0.25},{0.75,0.25},{0.25,0.5},{0.75,0.5},{0.25,0.75},{0.5,0.75},{0.75,0.75}};
+                else if (msaa_ratio == 16)
+                    sampled_points = std::vector<std::vector<float>> {{0.2,0.2},{0.4,0.2},{0.6,0.2},{0.8,0.2},
+                    {0.2,0.4},{0.4,0.4},{0.6,0.4},{0.8,0.4}, {0.2,0.6},{0.4,0.6},{0.6,0.6},{0.8,0.6},
+                    {0.2,0.8},{0.4,0.8},{0.6,0.8},{0.8,0.8}}; // this is for default msaa4X configurations.
 
-            float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-            float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-            zp *= Z;
-            const Eigen::Vector3f pxl_3d = {x, y, zp};  // pixel coordinate in cam 3D
-            // std::cout<<zp<<std::endl;
-            // compare the current depth with the value in depth buffer and shadow buffer
-            if(depth_buf[get_index(x,y)] > zp)// note: we use get_index to get the index of current point in depth buffer
-            {
+                for(int i=0; i<(int)max_count; i++) { // visit every sampled point
+                    float p_x = float(x) + sampled_points[i][0], p_y = float(y) + sampled_points[i][1];
+                    if(insideTriangle(p_x, p_y, t.v)) {
+                        visible_at_least_one = true;
+                        count += 1; 
+                        // get z value--depth
+                        auto [alpha, beta, gamma] = computeBarycentric2D(p_x, p_y, t.v);
+                        float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                        float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                        zp *= Z;
+                        // update super frame/depth buffer
+                        if (super_depth_buf[get_super_index(x * 2 + i % 2, y * 2 + i / 2)] > zp) {
+                            const Eigen::Vector3f p_center = {x, y, zp};  // pixel coordinate in cam 3D
+                            // interpolate default vertex color 
+                            auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+                            // interpolate norm 3d
+                            auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
+                            // interpolate texture 2D
+                            auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
+                            // interpolate shading_coords 3D
+                            auto interpolated_shadingcoords=interpolate(alpha, beta, gamma, p_3d[0], p_3d[1], p_3d[2], 1);
+                            // init shader struct and pass it to the class rasterizer
+                            fragment_shader_payload payload(interpolated_shadingcoords, p_center,
+                                        interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);  
+                            pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);    // ***** read point color from frag_shader calculation results. 
+                            if (msaa_ratio == 4) {
+                                super_frame_buf[get_super_index(x * 2 + i % 2, y * 2 + i / 2)] = pixel_color;
+                                super_depth_buf[get_super_index(x * 2 + i % 2, y * 2 + i / 2)] = zp;
+                            }
+                            else if (msaa_ratio == 8)
+                                throw std::runtime_error("Error: undefined sub-point indexing. Need implementation!");
+                            else if (msaa_ratio == 16)
+                                throw std::runtime_error("Error: undefined sub-point indexing. Need implementation!");
+                        }
+                    }
+                }
 
-                // we have to update this pixel
-                depth_buf[get_index(x,y)] = zp; // update depth buffer
-                // std::cout<<"Current depth"<<pixel_3d<<std::endl;
-                // interpolate color 3D
-                auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
-                // interpolate norm 3d
-                auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
-                // interpolate texture 2D
-                auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
-                // interpolate shading_coords 3D
-				auto interpolated_shadingcoords=interpolate(alpha, beta, gamma, p_3d[0], p_3d[0], p_3d[0], 1);	
-
-				// init shader struct and pass it to the class rasterizer
-				fragment_shader_payload payload(interpolated_shadingcoords, pxl_3d,
-                            interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);  
-                auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);    // ***** read point color from frag_shader calculation results.  
-                // std::cout<<pixel_color<<std::endl;
+                if (count > 0) {// if at least 1 sampled point is within the primitive
+                    // std::cout<<"find edges!"<<std::endl;
+                    if (msaa_ratio == 4) {
+                        const Eigen::Vector3f p1_color = super_frame_buf[get_super_index(x * 2, y * 2)];
+                        const Eigen::Vector3f p2_color = super_frame_buf[get_super_index(x * 2 + 1, y * 2)];
+                        const Eigen::Vector3f p3_color = super_frame_buf[get_super_index(x * 2, y * 2 + 1)];
+                        const Eigen::Vector3f p4_color = super_frame_buf[get_super_index(x * 2 + 1, y * 2 + 1)];
+                        final_color = (p1_color + p2_color + p3_color + p4_color) / max_count;
+                        // std::cout<<final_color<<std::endl;
+                    }
+                    else
+                        throw std::runtime_error("Error: undefined sub-point indexing. Need implementation!");
+                }
 
 
-
-                int idx_shad = -1;                          // default shad idx 
                 if (rst::rasterizer::read_shadow)  {        // read shadow from precomputed result.
+                    // get z value--depth
+                    auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
+                    float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    zp *= Z;            
+                    const Eigen::Vector3f pxl_3d = {x + 0.5, y + 0.5, zp};  // pixel coordinate in cam 3D
                     Eigen::Vector3f pxl_shad = p_trans(pxl_3d, cam2light);          // transform current pixel to shadow coord
                     auto x_shad = pxl_shad.x(), y_shad = pxl_shad.y(), z_shad = pxl_shad.z();
+                    // todo: 1. use interpolation to obtain refined shadow coordinate of current fragment pixel: p_center 2. do also super buffer with shadow depth buffer
                     x_shad = (int)x_shad;
                     y_shad = (int)y_shad;
+                    int idx_shad = -1;                          // default shad idx 
                     if (x_shad >= 0 && x_shad < width && y_shad >= 0 && y_shad < height) { // if valid inquiry pixel
                         idx_shad = get_index(x_shad, y_shad);       // obtain pixel inquiry index of shadow coord buffer
                     }
                     if (idx_shad != -1) {
-                        if (shadow_depth_buf[idx_shad] < z_shad)
-                            std::cout<<"find shadow point"<<std::endl;
+                        // if (shadow_depth_buf[idx_shad] < z_shad)
+                        //     std::cout<<"find shadow point"<<std::endl;
                         float shadow = 0.3 + 0.7 * (shadow_depth_buf[idx_shad] >= z_shad); // add shadow factor on top of shader rendered pixel color.  
                         // std::cout<<shadow<<" "<<shadow_depth_buf[idx_shad]<<" "<<z_shad<<std::endl;
-                        pixel_color *= shadow;
+                        final_color *= shadow;
                     }
-                }       
-				// set color
-				set_pixel(Eigen::Vector2i(x,y), pixel_color);               
-	        }
+                } 
+                if (count > 0) {
+                    // set color with msaa average shadow mapping result 
+                    set_pixel(Eigen::Vector2i(x,y), final_color);  
+                }
+                              
+            }
+
+
+
+            else {  // no anti-aliasing
+                // we need to decide whether this point is actually inside the triangle
+                if(!insideTriangle((float)x + 0.5,(float)y + 0.5,t.v))    
+                    continue; // note: we use x+0.5 to probe each pixel center
+                // get z value--depth
+                // If so, use the following code to get the interpolated z value.
+                visible_at_least_one = true;
+                auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
+                float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                zp *= Z;
+                const Eigen::Vector3f pxl_3d = {x + 0.5, y + 0.5, zp};  // pixel coordinate in cam 3D
+                // std::cout<<zp<<std::endl;
+                // compare the current depth with the value in depth buffer and shadow buffer
+                // if(depth_buf[get_index(x,y)] > zp)// note: we use get_index to get the index of current point in depth buffer
+
+                if(depth_buf[get_index(x,y)] > zp)// note: we use get_index to get the index of current point in depth buffer
+                {
+
+                    // we have to update this pixel
+                    depth_buf[get_index(x,y)] = zp; // update depth buffer
+                    // std::cout<<"Current depth"<<pixel_3d<<std::endl;
+                    // interpolate color 3D
+                    auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+                    // interpolate norm 3d
+                    auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
+                    // interpolate texture 2D
+                    auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
+                    // interpolate shading_coords 3D
+                    auto interpolated_shadingcoords=interpolate(alpha, beta, gamma, p_3d[0], p_3d[1], p_3d[2], 1);	
+
+                    // init shader struct and pass it to the class rasterizer
+                    fragment_shader_payload payload(interpolated_shadingcoords, pxl_3d,
+                                interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);  
+                    auto pixel_color = fragment_shader(payload, p_l, a_l, eye_pos);    // ***** read point color from frag_shader calculation results.  
+                    // std::cout<<pixel_color<<std::endl;
+
+
+
+                    int idx_shad = -1;                          // default shad idx 
+                    if (rst::rasterizer::read_shadow)  {        // read shadow from precomputed result.
+                        Eigen::Vector3f pxl_shad = p_trans(pxl_3d, cam2light);          // transform current pixel to shadow coord
+                        auto x_shad = pxl_shad.x(), y_shad = pxl_shad.y(), z_shad = pxl_shad.z();
+                        x_shad = (int)x_shad;
+                        y_shad = (int)y_shad;
+                        if (x_shad >= 0 && x_shad < width && y_shad >= 0 && y_shad < height) { // if valid inquiry pixel
+                            idx_shad = get_index(x_shad, y_shad);       // obtain pixel inquiry index of shadow coord buffer
+                        }
+                        if (idx_shad != -1) {
+                            // if (shadow_depth_buf[idx_shad] < z_shad)
+                            //     std::cout<<"find shadow point"<<std::endl;
+                            float shadow = 0.3 + 0.7 * (shadow_depth_buf[idx_shad] >= z_shad); // add shadow factor on top of shader rendered pixel color.  
+                            // std::cout<<shadow<<" "<<shadow_depth_buf[idx_shad]<<" "<<z_shad<<std::endl;
+                            pixel_color *= shadow;
+                        }
+                    }       
+                    // set color
+                    set_pixel(Eigen::Vector2i(x,y), pixel_color);               
+                }
+            }
+
     	}
     }	
 }
@@ -512,6 +620,17 @@ void rst::rasterizer::set_pixel(const Vector2i& point, const Eigen::Vector3f& co
 	frame_buf[ind] = color;
 }
 
+// get pixel color from frame buffer.
+Eigen::Vector3f rst::rasterizer::get_pixel(const Vector2i& point) {
+    if (point.x() < 0 || point.x() >= width ||
+        point.y() < 0 || point.y() >= height) {
+            throw std::runtime_error("Error: point index out of window boarder when inquirying its color from the frame buffer! ");
+        }
+
+    auto ind = (height-1-point.y())*width + point.x();    
+    return frame_buf[ind];
+}
+
 // load vertex shader instance into rasterizer
 void rst::rasterizer::set_vertex_shader(std::function<Eigen::Vector3f(vertex_shader_payload)> vert_shader)
 {
@@ -521,7 +640,21 @@ void rst::rasterizer::set_vertex_shader(std::function<Eigen::Vector3f(vertex_sha
 // map 2d coord to 1d index
 int rst::rasterizer::get_index(int x, int y)
 {
-    return (height-y)*width + x;
+    return (height - 1 - y) * width + x;
+}
+
+int rst::rasterizer::get_super_index(int x, int y)
+{
+    int resize;
+    if (msaa_ratio == 4)
+        resize = 2;
+    else if (msaa_ratio == 8)
+        resize = 3;
+    else if (msaa_ratio == 16)
+        resize = 4;
+    else 
+        throw std::runtime_error("Undefined msaa resize ratio. Please check it in the function get_super_index");
+    return (height * resize - 1 - y) * width * resize + x;
 }
 
 Eigen::Vector4f rst::rasterizer::toVector4(const Eigen::Vector3f& p3) { // convert every pixel vertex in p_3d into 4d coord

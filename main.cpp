@@ -153,7 +153,9 @@ int main(int argc, const char** argv) {
 
 	// define rasterizer class 
     bool command_line = false;									                    // set cmd line flag
-    bool use_shadow_mapping = false;                                                 // if apply shadow mapping to rendering results
+    bool use_shadow_mapping = true;                                                 // if apply shadow mapping to rendering results
+    bool use_msaa = true;
+    int msaa_ratio = 4;
 	const int screen_width = 700, screen_height = 700;                          
     Transformation* Tf;                                                             // transform class pointer
     // Eigen::Vector3f angle = {0.0, 90.0, 0.0};			                        // set rotation (world -> camera)  
@@ -169,36 +171,25 @@ int main(int argc, const char** argv) {
     Eigen::Vector3f eye_pos = {0,0,10}, gaze = {0, 0, -1}, up = {0,1,0};		    // set view position 
 
     // Eigen::Vector3f angle = {0.0, 0.0, 0.0};			                            // set rotation (world -> camera)  
-    // Eigen::Vector3f scale = {1, 1, 1};			                            // set scale (world -> camera) 
-    // Eigen::Vector3f translation = {0.0, 0.0, 0.0};			                        // set translation (world -> camera)    
-    // Eigen::Vector3f eye_pos = {0,0,10}, gaze = {0, 0, -1}, up = {0,1,0};		    // set view position 
-
-    // Eigen::Vector3f angle = {0.0, 0.0, 0.0};			                            // set rotation (world -> camera)  
     // Eigen::Vector3f scale = {2.5, 2.5, 2.5};			                            // set scale (world -> camera) 
     // Eigen::Vector3f translation = {0.0, 0.0, 0.0};			                        // set translation (world -> camera)    
     // Eigen::Vector3f eye_pos = {0,10, 10}, gaze = {0, -0.707, -0.707}, up = {0, 0.707, -0.707};		    // set view position 
 
-    // std::vector<Eigen::Vector3f> point_light_angle = {{0.0, 0.0, 0.0}};           // set rotation (wordl -> light)
-    // std::vector<Eigen::Vector3f> point_light_scale = {{2.5, 2.5, 2.5}};			    // set scale (world -> camera)     
-    // std::vector<Eigen::Vector3f> point_light_translation = {{0.0, 0.0, 0.0}};       // set translation (world -> light)
-    // std::vector<Eigen::Vector3f> point_light_pos = {{0, 5, -5}};                     // set point light position    
+
+    // std::vector<Eigen::Vector3f> light_angle = {{0, 90, 0}};;			               // set rotation (world -> light)  
+    // std::vector<Eigen::Vector3f> light_scale = {{2.5, 2.5, 2.5}};			               // set scale (world -> camera) 
+    // std::vector<Eigen::Vector3f> light_translation = {{0, 0, 0}};			               // set translation (world -> light)  
+    // std::vector<Eigen::Vector3f> point_light_pos = {{0, 0, -10}};                           // set point light position    
     // std::vector<Eigen::Vector3f> point_light_itn = {{500, 500, 500}};// point light itensity
-    // std::vector<Eigen::Vector3f> point_light_gaze = {{0, -0.707, 0.707}}, point_light_up = {{0, 0.707, 0.707}};// point light gaze and up direction.
+    // std::vector<Eigen::Vector3f> point_light_gaze = {{0, 0, 1}}, point_light_up = {{0, 1, 0}};// point light gaze and up direction.
 
-    // std::vector<Eigen::Vector3f> point_light_angle = {{90.0, -135.0, -45.0}};           // set rotation (world -> light)
-    // std::vector<Eigen::Vector3f> point_light_scale = {{2.5, 2.5, 2.5}};			    // set scale (world -> camera)     
-    // std::vector<Eigen::Vector3f> point_light_translation = {{0.0, 0.0, 0.0}};       // set translation (world -> light)
-    // std::vector<Eigen::Vector3f> point_light_pos = {{0, 0, -10}};                     // set point light position    
-    // std::vector<Eigen::Vector3f> point_light_itn = {{500, 500, 500}};// point light itensity
-    // std::vector<Eigen::Vector3f> point_light_gaze = {{0, 0, 1}}, point_light_up = {{0,1,0}};// point light gaze and up direction.
-
-
-    std::vector<Eigen::Vector3f> light_angle = {{0, 90, 0}};;			               // set rotation (world -> light)  
-    std::vector<Eigen::Vector3f> light_scale = {{2.5, 2.5, 2.5}};			               // set scale (world -> camera) 
-    std::vector<Eigen::Vector3f> light_translation = {{0, 0, 0}};			               // set translation (world -> light)  
-    std::vector<Eigen::Vector3f> point_light_pos = {{0, 0, -10}};                           // set point light position    
+    std::vector<Eigen::Vector3f> light_angle = {{30.0, 120.0, 0.0}};           // set rotation (wordl -> light)
+    std::vector<Eigen::Vector3f> light_scale = {{2.5, 2.5, 2.5}};			    // set scale (world -> camera)     
+    std::vector<Eigen::Vector3f> light_translation = {{0.0, 0.0, 0.0}};       // set translation (world -> light)
+    std::vector<Eigen::Vector3f> point_light_pos = {{0, 7, -7}};                     // set point light position    
     std::vector<Eigen::Vector3f> point_light_itn = {{500, 500, 500}};// point light itensity
-    std::vector<Eigen::Vector3f> point_light_gaze = {{0, 0, 1}}, point_light_up = {{0, 1, 0}};// point light gaze and up direction.
+    std::vector<Eigen::Vector3f> point_light_gaze = {{0, -0.707, 0.707}}, point_light_up = {{0, 0.707, 0.707}};// point light gaze and up direction.
+
 
 
     Eigen::Vector3f ambient_light_itn = {10, 10, 10};                           // ambient light intensity
@@ -236,7 +227,8 @@ int main(int argc, const char** argv) {
 
 
     rst::rasterizer r_shadow(screen_width, screen_height);                                        // set shadow screen object and its size 
-    r_shadow.read_shadow = false;                                                                  // Generate shadow instead of read shadow
+    r_shadow.read_shadow = false;                                                                 // Generate shadow instead of read shadow
+    r_shadow.set_msaa(false);                                                                     // set no msaa in calculating shadow depth buffer
     std::vector<Eigen::Vector3f> shadow_buf;
     std::vector<float> shadow_depth_buf;
     std::vector<std::vector<Eigen::Vector3f>> shadow_buf_list;
@@ -272,6 +264,7 @@ int main(int argc, const char** argv) {
         }
         std::cout<<"Finish shadow mapping computation"<<std::endl;
         // return -1;
+
     }
 
 
@@ -282,7 +275,13 @@ int main(int argc, const char** argv) {
     const Eigen::Matrix4f& shadow_mvps = s_screen * s_projection * s_view * s_model;                        // obtain shadow-related transform mat (world to light)
 
 
-    rst::rasterizer r(screen_width, screen_height);                             // set screen buffer object and its size  
+    rst::rasterizer r(screen_width, screen_height);                     // set screen buffer object and its size  
+    r.set_msaa(use_msaa);                                               // set msaa 
+    r.set_msaa_ratio(msaa_ratio);                                       // set msaa 
+    // std::cout<<use_msaa<<" "<<r.get_msaa_status()<<std::endl;
+    // std::cout<<r.get_msaa_ratio()<<std::endl;
+    // return 0;
+    r.set_msaa_ratio(msaa_ratio);                                       // set msaa ratio
     if (use_shadow_mapping)
         r.read_shadow = true;                                           // read shadow-related buffer
     std::string texture_path = "../models/spot/hmap.jpg"; 			// default colormap

@@ -13,21 +13,22 @@ inline double Degree(double angle)  {return angle*MY_PI/180.0;}
 
 
 
-Eigen::Matrix4f Transformation::get_view_matrix(const Eigen::Vector3f& eye_pos, const Eigen::Vector3f& gaze = {0, 0, -1}, 
+Eigen::Matrix4f Transformation::get_view_matrix(const Eigen::Vector3f& eye_pos,  const Eigen::Vector3f& gaze = {0, 0, -1}, 
                                                 const Eigen::Vector3f& up = {0,1,0}) {
                                                                     // canonical transform: camera to camera canonical
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f translate;
     Eigen::Matrix4f rotate;
-
+    Eigen::Vector3f gaze_norm = gaze.normalized();
+    Eigen::Vector3f up_norm = up.normalized();
     translate << 1,0,0,-eye_pos[0],
                 0,1,0,-eye_pos[1],
                 0,0,1,-eye_pos[2],
                 0,0,0,1;   
     
-    rotate << gaze.cross(up).x(), up.x(), gaze.x(), 0, // g at -z, x at up
-              gaze.cross(up).y(), up.y(), gaze.y(), 0,
-              gaze.cross(up).z(), up.z(), gaze.z(), 0,
+    rotate << gaze.cross(up).x(), up_norm.x(), gaze_norm.x(), 0, // g at -z, x at up
+              gaze.cross(up).y(), up_norm.y(), gaze_norm.y(), 0,
+              gaze.cross(up).z(), up_norm.z(), gaze_norm.z(), 0,
               0,                0,    0,           1;
 
     view = rotate.transpose() * translate * view; // rotate.inverse() == rotate.transpose()
