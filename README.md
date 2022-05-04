@@ -1,9 +1,9 @@
 # Shadtakovich
 Get hands dirty by building a simple Rasterizer. 
 
-#### Miscellaneous rendering result
+## Miscellaneous rendering result
 		
-#### Rendering Pipeline	
+## Rendering Pipeline	
 ```mermaid
 graph LR
 A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented primitive]
@@ -14,7 +14,7 @@ A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented prim
     F -->G[Rendered Result]
 ```
 
-#### Current Support Functions
+## Current Support Functions
 |  functions   | tested |
 |  ----  | ----  |
 | Bresenham's line drawing algorithm (https://stackoverflow.com/questions/10060046/drawing-lines-with-bresenhams-line-algorithm)  | <ul><li>- [x] </li> |
@@ -26,7 +26,7 @@ A[3D Object e.g., mesh file] -->B[Read each face e.g., triangle represented prim
 | Anti-aliasing(FSAA) |  |
 | Interaction (e.g. camera path) |  |	
 
-#### External Libraries	
+## External Libraries	
 Eigen.   
 Opencv.   
 
@@ -34,7 +34,7 @@ Opencv.
 	
 	
 	
-#### File Description
+## File Description
 *  main.cpp
     > define transformation matrix (world->camera / camera->camera canonical / perspective + orthogonal transform / 3D canonical cube to 2D screen)  
     > define shader type (texture_fragment_shader / phong_fragment_shader)  
@@ -44,7 +44,7 @@ Opencv.
 	
 	
 
-##### Reference List:
+## Reference List:
 https://github.com/ssloy/tinyrenderer	\
 Games 101 Course (https://www.bilibili.com/video/BV1X7411F744?p=11)		\
 Games 202 Course (https://www.bilibili.com/video/BV1YK4y1T7yY?p=10)		\
