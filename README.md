@@ -2,7 +2,12 @@
 Get hands dirty by building a simple Rasterizer. 
 
 ## Miscellaneous rendering result
-		
+<img src="/Rasterizer_demo/Rasterizer_demo.001.png" width=50% height=50%>
+<img src="/Rasterizer_demo/Rasterizer_demo.002.png" width=50% height=50%>
+<img src="/Rasterizer_demo/Rasterizer_demo.003.png" width=50% height=50%>
+<img src="/Rasterizer_demo/Rasterizer_demo.004.png" width=50% height=50%>
+
+
 ## Rendering Pipeline	
 ```mermaid
 graph LR
