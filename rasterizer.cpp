@@ -253,13 +253,16 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
                         // update super frame/depth buffer
                         if (super_depth_buf[get_super_index(x * 2 + i % 2, y * 2 + i / 2)] > zp) {
                             const Eigen::Vector3f p_center = {x, y, zp};  // pixel coordinate in cam 3D
-                            // interpolate default vertex color 
+                            /* interpolatation problem: 2d barycentric does not fit 3D interpolation.
+                            https://github.com/ssloy/tinyrenderer/wiki/Technical-difficulties:-linear-interpolation-with-perspective-deformations
+                            */
+                            // interpolate default vertex color (valid since vertex color is set the same in drawTriangle())
                             auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
-                            // interpolate norm 3d
+                            // interpolate norm 3d (problematic since barycentric coord should be in 3D)
                             auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
-                            // interpolate texture 2D
+                            // interpolate texture 2D ()
                             auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
-                            // interpolate shading_coords 3D
+                            // interpolate shading_coords 3D (problematic since barycentric coord should be in 3D)
                             auto interpolated_shadingcoords=interpolate(alpha, beta, gamma, p_3d[0], p_3d[1], p_3d[2], 1);
                             // init shader struct and pass it to the class rasterizer
                             fragment_shader_payload payload(interpolated_shadingcoords, p_center,
@@ -349,7 +352,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
                     // std::cout<<"Current depth"<<pixel_3d<<std::endl;
                     // interpolate color 3D
                     auto interpolated_color=interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
-                    // interpolate norm 3d
+                    // interpolate norm 3D
                     auto interpolated_normal=interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
                     // interpolate texture 2D
                     auto interpolated_texcoords=interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
